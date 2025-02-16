@@ -1,2 +1,2 @@
-# gltm
-Grafana, Loki, Alloy
+# lgtm
+Grafana, Loki
