@@ -1,0 +1,19 @@
+logs:
+  configs:
+    - name: default
+      # Where to store positions for log scraping
+      positions:
+        filename: /tmp/positions.yaml
+      # Loki client configuration: update the URL to point to your Loki instance
+      clients:
+        - url: http://loki:3100/loki/api/v1/push
+      # Scrape configuration for Docker containers using docker_sd_configs
+      scrape_configs:
+        - job_name: docker-logs
+          # Discover Docker containers via the Docker socket
+          docker_sd_configs:
+            - host: unix:///var/run/docker.sock
+          # Optional: Filter or add labels to your logs
+          relabel_configs:
+            - source_labels: [__meta_docker_container_name]
+              target_label: container_name
