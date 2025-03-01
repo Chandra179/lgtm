@@ -42,16 +42,37 @@ services:
     networks:
       - lgtm-private
 
-  grafana-agent:
-    container_name: grafana-agent
-    image: grafana/agent:latest
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./agent-config.yaml:/etc/agent-config.yaml
+  # grafana-agent:
+  #   container_name: grafana-agent
+  #   image: grafana/agent:latest
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - ./agent-config.yaml:/etc/agent-config.yaml
+  #   ports:
+  #     - "12345:12345" # Optional: if you want to expose the agent’s HTTP endpoint
+  #   command:
+  #     - "--config.file=/etc/agent-config.yaml"
+  #   networks:
+  #     - lgtm-private
+  #     - lgtm-public
+
+  grafana-alloy:
+    image: grafana/alloy:latest
+    container_name: grafana-alloy
     ports:
-      - "12345:12345" # Optional: if you want to expose the agent’s HTTP endpoint
+      - "12345:12345" # Alloy HTTP/metrics endpoint
+      - "9090:9090" # Example port for scraping targets
+    volumes:
+      - ./config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
     command:
-      - "--config.file=/etc/agent-config.yaml"
+      [
+        "run",
+        "--server.http.listen-addr=0.0.0.0:12345",
+        "--storage.path=/var/lib/alloy/data",
+        "/etc/alloy/config.alloy",
+      ]
     networks:
       - lgtm-private
       - lgtm-public
