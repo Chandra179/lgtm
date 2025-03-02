@@ -75,9 +75,19 @@ services:
       ]
     networks:
       - lgtm-private
-      - lgtm-public
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./tempo.yaml:/etc/tempo/tempo.yaml
+    ports:
+      - "3200:3200" # Tempo HTTP endpoint
+      - "4317:4317" # OTLP gRPC endpoint
+      - "4318:4318" # OTLP HTTP endpoint
+    networks:
+      - lgtm-private
 
 networks:
   lgtm-private:
-  lgtm-public:
-    external: true

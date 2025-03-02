@@ -1,26 +1,86 @@
-discovery.docker "logs_default_docker_logs" {
-	host = "unix:///var/run/docker.sock"
+// discovery.docker "logs_default_docker_logs" {
+// 	host = "unix:///var/run/docker.sock"
+// }
+
+// discovery.relabel "logs_default_docker_logs" {
+// 	targets = []
+// 	rule {
+// 		source_labels = ["__meta_docker_container_name"]
+// 		target_label  = "container_name"
+// 	}
+// }
+
+// loki.source.docker "logs_default_docker_logs" {
+// 	host          = "unix:///var/run/docker.sock"
+// 	targets       = discovery.docker.logs_default_docker_logs.targets
+// 	forward_to    = [loki.write.logs_default.receiver]
+// 	relabel_rules = discovery.relabel.logs_default_docker_logs.rules
+// }
+
+// loki.write "logs_default" {
+// 	endpoint {
+// 		url = "http://loki:3100/loki/api/v1/push"
+// 	}
+// 	external_labels = {}
+// }
+
+// Added OTLP receiver for logs and traces
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+  output {
+    logs   = [otelcol.processor.batch.default.input]
+    traces = [otelcol.processor.batch.default.input]
+  }
 }
 
-discovery.relabel "logs_default_docker_logs" {
-	targets = []
-
-	rule {
-		source_labels = ["__meta_docker_container_name"]
-		target_label  = "container_name"
-	}
+// Process telemetry data in batches for efficiency
+otelcol.processor.batch "default" {
+  timeout = "1s"
+  send_batch_size = 1024
+  
+  output {
+    logs   = [otelcol.processor.attributes.default.input]
+    traces = [otelcol.processor.attributes.default.input]
+  }
 }
 
-loki.source.docker "logs_default_docker_logs" {
-	host          = "unix:///var/run/docker.sock"
-	targets       = discovery.docker.logs_default_docker_logs.targets
-	forward_to    = [loki.write.logs_default.receiver]
-	relabel_rules = discovery.relabel.logs_default_docker_logs.rules
+// Add standard attributes to all telemetry
+otelcol.processor.attributes "default" {
+  action {
+    key = "environment"
+    value = "production"
+    action = "insert"
+  }
+  
+  output {
+    logs   = [otelcol.exporter.loki.default.input]
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
 }
 
-loki.write "logs_default" {
-	endpoint {
-		url = "http://loki:3100/loki/api/v1/push"
-	}
-	external_labels = {}
+// Export logs to Loki
+otelcol.exporter.loki "default" {
+  endpoint = "http://loki:3100/loki/api/v1/push"
+  
+  labels {
+    attributes {
+      "service.name" = "service_name"
+      "service.instance.id" = "service_instance"
+    }
+  }
+}
+
+// Export traces to Tempo
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "http://tempo:4317"
+    tls {
+      insecure = true
+    }
+  }
 }
